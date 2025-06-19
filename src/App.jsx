@@ -3,6 +3,8 @@ import './index.css'
 
 export default function App() {
   const [tabs, setTabs] = useState([])
+  const [globalMute, setGlobalMute] = useState(false)
+  const [tabStates, setTabStates] = useState({}) // { tabId: { volume, isMuted } }
 
   useEffect(() => {
     chrome.tabs.query({}, async (allTabs) => {
@@ -17,11 +19,69 @@ export default function App() {
     })
   }, [])
 
+  const handleToggleMuteAll = () => {
+    const nextMuteState = !globalMute
+    setGlobalMute(nextMuteState)
+
+    const updated = {}
+    tabs.forEach((tab) => {
+      const current = tabStates[tab.id] || { volume: 0.5, isMuted: false }
+      updated[tab.id] = { volume: current.volume, isMuted: nextMuteState }
+
+      chrome.storage.local.set({
+        [`tab-${tab.id}`]: { volume: current.volume, isMuted: nextMuteState },
+      })
+      injectVolume(tab.id, current.volume, nextMuteState)
+    })
+
+    setTabStates(updated)
+  }
+
+  const resetAll = () => {
+    setGlobalMute(false)
+    const reset = {}
+    tabs.forEach((tab) => {
+      chrome.storage.local.set({
+        [`tab-${tab.id}`]: { volume: 0.5, isMuted: false },
+      })
+      injectVolume(tab.id, 0.5, false)
+      reset[tab.id] = { volume: 0.5, isMuted: false }
+    })
+    setTabStates(reset)
+  }
+
+  const updateTabState = (tabId, volume, isMuted) => {
+    setTabStates((prev) => {
+      const updated = { ...prev, [tabId]: { volume, isMuted } }
+
+      // ⬇️ If any tab is not muted, disable global mute
+      const allMuted = Object.values(updated).every((s) => s.isMuted)
+      setGlobalMute(allMuted)
+
+      return updated
+    })
+  }
+
   return (
-    <>
+    <div className="flex flex-col h-full">
       <header className="p-6 pb-4 border-b border-gray-700">
-        <h1 className="text-2xl font-bold">Simple Volume</h1>
+        <h1 className="text-2xl font-bold">Volume Controller</h1>
       </header>
+
+      <div className="flex justify-between px-6 pt-3 gap-4">
+        <button
+          onClick={handleToggleMuteAll}
+          className="text-xs text-gray-200 px-3 py-1 bg-pink-600 rounded hover:bg-pink-700"
+        >
+          {globalMute ? 'Unmute All Tabs' : 'Mute All Tabs'}
+        </button>
+        <button
+          onClick={resetAll}
+          className="text-xs text-gray-200 px-3 py-1 bg-gray-600 rounded hover:bg-gray-700"
+        >
+          Reset All to 100%
+        </button>
+      </div>
 
       <main className="flex-1 overflow-y-auto px-6 py-4 space-y-6" id="tab-list">
         {tabs.length === 0 ? (
@@ -29,7 +89,11 @@ export default function App() {
         ) : (
           tabs.map((tab, index) => (
             <React.Fragment key={tab.id}>
-              <TabController tab={tab} />
+              <TabController
+                tab={tab}
+                globalMute={globalMute}
+                onStateChange={updateTabState}
+              />
               {index !== tabs.length - 1 && (
                 <div className="border-t border-gray-700" />
               )}
@@ -41,11 +105,11 @@ export default function App() {
       <footer className="text-xs text-center text-gray-500 border-t border-gray-700 p-3">
         Built by ❤️ caju
       </footer>
-    </>
+    </div>
   )
 }
 
-function TabController({ tab }) {
+function TabController({ tab, globalMute, onStateChange }) {
   const [volume, setVolume] = useState(0.5)
   const [isMuted, setIsMuted] = useState(false)
 
@@ -55,14 +119,16 @@ function TabController({ tab }) {
       setVolume(state.volume)
       setIsMuted(state.isMuted)
       injectVolume(tab.id, state.volume, state.isMuted)
+      onStateChange(tab.id, state.volume, state.isMuted)
     })
-  }, [tab.id])
+  }, [tab.id, globalMute])
 
   const updateVolume = (vol, mute) => {
     setVolume(vol)
     setIsMuted(mute)
     chrome.storage.local.set({ [`tab-${tab.id}`]: { volume: vol, isMuted: mute } })
     injectVolume(tab.id, vol, mute)
+    onStateChange(tab.id, vol, mute)
   }
 
   const gain = isMuted ? 0 : (volume <= 0.5 ? volume * 2 : 1 + (volume - 0.5) * 4)
@@ -96,9 +162,7 @@ function TabController({ tab }) {
             step="0.01"
             value={volume}
             onChange={(e) => updateVolume(parseFloat(e.target.value), false)}
-            className={`w-full cursor-pointer ${
-              gain > 1 ? 'accent-red-500' : 'accent-pink-500'
-            }`}
+            className={`w-full cursor-pointer ${gain > 1 ? 'accent-red-500' : 'accent-pink-500'}`}
           />
           <span className="text-xs text-gray-400 text-right w-12">{percent}%</span>
         </div>
