@@ -39,7 +39,7 @@ export default function App() {
       </main>
 
       <footer className="text-xs text-center text-gray-500 border-t border-gray-700 p-3">
-        Built ❤️ by caju
+        Built by ❤️ caju
       </footer>
     </>
   )
