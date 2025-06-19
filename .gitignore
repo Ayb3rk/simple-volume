@@ -1,0 +1,29 @@
+# dependencies
+node_modules/
+
+# production build output
+dist/
+
+# local development logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor settings
+.vscode/
+.idea/
+
+# system files
+.DS_Store
+Thumbs.db
+
+# environment files (if you add them later)
+.env
+.env.local
+.env.*.local
+
+# macOS metadata
+*.DS_Store
+
+# lockfile backup (npm v9+)
+package-lock.json.*
