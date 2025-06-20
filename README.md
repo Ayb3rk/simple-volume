@@ -1,4 +1,4 @@
-# 🔊 Chrome Volume Controller
+# 🔊 Simple Volume
 
 A beautiful Chrome extension that lets you control and boost the volume of each tab individually — or all tabs at once. Built with **React**, **Tailwind CSS**, and ❤️.
 
