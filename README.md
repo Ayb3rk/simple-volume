@@ -21,7 +21,7 @@ A beautiful Chrome extension that lets you control and boost the volume of each 
 1. **Clone the repo**
 
 ```bash
-git clone https://github.com/yourusername/chrome-volume-controller.git
+git clone https://github.com/Ayb3rk/chrome-volume-controller.git
 cd chrome-volume-controller
 ```
 
@@ -90,4 +90,4 @@ All icons used are stored in `public/icons/` and are free for non-commercial use
 
 ## 💖 Built by
 
-[@caju](https://github.com/ayb3rk)
+[@caju](https://github.com/Ayb3rk)
