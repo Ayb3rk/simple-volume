@@ -54,7 +54,6 @@ export default function App() {
     setTabStates((prev) => {
       const updated = { ...prev, [tabId]: { volume, isMuted } }
 
-      // ⬇️ If any tab is not muted, disable global mute
       const allMuted = Object.values(updated).every((s) => s.isMuted)
       setGlobalMute(allMuted)
 
@@ -87,18 +86,23 @@ export default function App() {
         {tabs.length === 0 ? (
           <p className="text-sm text-gray-400">No media tabs found.</p>
         ) : (
-          tabs.map((tab, index) => (
-            <React.Fragment key={tab.id}>
-              <TabController
-                tab={tab}
-                globalMute={globalMute}
-                onStateChange={updateTabState}
-              />
-              {index !== tabs.length - 1 && (
-                <div className="border-t border-gray-700" />
-              )}
-            </React.Fragment>
-          ))
+          tabs.map((tab, index) => {
+            const tabState = tabStates[tab.id] || { volume: 0.5, isMuted: false }
+            return (
+              <React.Fragment key={tab.id}>
+                <TabController
+                  tab={tab}
+                  globalMute={globalMute}
+                  volume={tabState.volume}
+                  isMuted={tabState.isMuted}
+                  onStateChange={updateTabState}
+                />
+                {index !== tabs.length - 1 && (
+                  <div className="border-t border-gray-700" />
+                )}
+              </React.Fragment>
+            )
+          })
         )}
       </main>
 
@@ -109,9 +113,14 @@ export default function App() {
   )
 }
 
-function TabController({ tab, globalMute, onStateChange }) {
-  const [volume, setVolume] = useState(0.5)
-  const [isMuted, setIsMuted] = useState(false)
+function TabController({ tab, globalMute, volume: externalVolume, isMuted: externalMuted, onStateChange }) {
+  const [volume, setVolume] = useState(externalVolume)
+  const [isMuted, setIsMuted] = useState(externalMuted)
+
+  useEffect(() => {
+    setVolume(externalVolume)
+    setIsMuted(externalMuted)
+  }, [externalVolume, externalMuted])
 
   useEffect(() => {
     chrome.storage.local.get([`tab-${tab.id}`], (result) => {
