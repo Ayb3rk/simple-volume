@@ -21,8 +21,8 @@ A beautiful Chrome extension that lets you control and boost the volume of each 
 1. **Clone the repo**
 
 ```bash
-git clone https://github.com/Ayb3rk/chrome-volume-controller.git
-cd chrome-volume-controller
+git clone https://github.com/Ayb3rk/simple-volume.git
+cd simple-volume
 ```
 
 2. **Install dependencies**
@@ -59,16 +59,22 @@ This will generate the `dist` folder with your minified React + Tailwind extensi
 ## 📁 Folder Structure
 
 ```
-chrome-volume-controller/
+simple-volume/
 │
-├── public/               # Static assets (e.g. icons)
-├── src/
-│   ├── App.jsx           # Main extension UI
-│   └── index.css         # Tailwind config
-├── manifest.json         # Chrome Extension config
+├── public/                        # Static files available to Vite & Chrome
+│   ├── icons/                     # All extension icons
+│   └── manifest.json              # Chrome extension manifest
+│
+├── src/                           # React + Tailwind app source
+│   ├── App.jsx                    # Main App component
+│   ├── main.jsx                   # Entry point
+│   └── index.css                  # Tailwind styles
+│
+├── index.html                     # Root HTML, used by Vite
+├── package.json
 ├── tailwind.config.js
-├── vite.config.js
-└── ...
+├── postcss.config.js
+└── vite.config.js
 ```
 
 ---
