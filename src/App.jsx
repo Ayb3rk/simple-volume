@@ -64,7 +64,7 @@ export default function App() {
   return (
     <div className="flex flex-col h-full">
       <header className="p-6 pb-4 border-b border-gray-700">
-        <h1 className="text-2xl font-bold">Volume Controller</h1>
+        <h1 className="text-2xl font-bold">Simple Volume</h1>
       </header>
 
       <div className="flex justify-between px-6 pt-3 gap-4">
