@@ -8,16 +8,20 @@ export default function App() {
   const [tabStates, setTabStates] = useState({}) // { tabId: { volume, isMuted } }
 
   useEffect(() => {
-    chrome.tabs.query({}, async (allTabs) => {
-      const results = await Promise.all(
-        allTabs.map(async (tab) => {
-          if (!tab.id || tab.url.startsWith('chrome://')) return null
-          const hasMedia = await checkTabHasMedia(tab.id)
-          return hasMedia ? tab : null
-        })
-      )
-      setTabs(results.filter(Boolean))
+    const updateTabs = (changes, area) => {
+      if (area === 'local' && changes.mediaTabs) {
+        setTabs(changes.mediaTabs.newValue || [])
+      }
+    }
+
+    chrome.storage.onChanged.addListener(updateTabs)
+    chrome.storage.local.get('mediaTabs', (data) => {
+      setTabs(data.mediaTabs || [])
     })
+
+    return () => {
+      chrome.storage.onChanged.removeListener(updateTabs)
+    }
   }, [])
 
   const handleToggleMuteAll = () => {
@@ -208,26 +212,6 @@ function TabController({ tab, globalMute, globalVolume, volume: externalVolume, 
       </div>
     </div>
   )
-}
-
-function checkTabHasMedia(tabId) {
-  return new Promise((resolve) => {
-    chrome.scripting.executeScript(
-      {
-        target: { tabId, allFrames: true },
-        func: () => !!document.querySelector('video, audio'),
-      },
-      (results) => {
-        if (chrome.runtime.lastError) {
-          // Handle or log the error, e.g., for tabs that can't be scripted
-          return resolve(false)
-        }
-        // If any frame has media, the whole tab is considered to have media
-        const hasMedia = results?.some((frameResult) => frameResult.result)
-        resolve(hasMedia || false)
-      }
-    )
-  })
 }
 
 function injectVolume(tabId, volume, isMuted, globalVolume = 1) {
