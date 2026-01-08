@@ -10,6 +10,11 @@ export default defineConfig({
       input: {
         popup: resolve(__dirname, 'index.html'),
         background: resolve(__dirname, 'src/background.js')
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          return chunkInfo.name === 'background' ? 'background.js' : 'assets/[name]-[hash].js';
+        }
       }
     },
     outDir: 'dist',
