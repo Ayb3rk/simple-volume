@@ -4,6 +4,7 @@ import './index.css'
 export default function App() {
   const [tabs, setTabs] = useState([])
   const [globalMute, setGlobalMute] = useState(false)
+  const [globalVolume, setGlobalVolume] = useState(1)
   const [tabStates, setTabStates] = useState({}) // { tabId: { volume, isMuted } }
 
   useEffect(() => {
@@ -31,7 +32,7 @@ export default function App() {
       chrome.storage.local.set({
         [`tab-${tab.id}`]: { volume: current.volume, isMuted: nextMuteState },
       })
-      injectVolume(tab.id, current.volume, nextMuteState)
+      injectVolume(tab.id, current.volume, nextMuteState, globalVolume)
     })
 
     setTabStates(updated)
@@ -39,12 +40,13 @@ export default function App() {
 
   const resetAll = () => {
     setGlobalMute(false)
+    setGlobalVolume(1)
     const reset = {}
     tabs.forEach((tab) => {
       chrome.storage.local.set({
         [`tab-${tab.id}`]: { volume: 0.5, isMuted: false },
       })
-      injectVolume(tab.id, 0.5, false)
+      injectVolume(tab.id, 0.5, false, 1)
       reset[tab.id] = { volume: 0.5, isMuted: false }
     })
     setTabStates(reset)
@@ -65,6 +67,21 @@ export default function App() {
     <div className="flex flex-col h-full">
       <header className="p-6 pb-4 border-b border-gray-700">
         <h1 className="text-2xl font-bold">Simple Volume</h1>
+        <div className="flex items-center gap-3 mt-3">
+          <span className="text-sm">Global:</span>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={globalVolume}
+            onChange={(e) => setGlobalVolume(parseFloat(e.target.value))}
+            className="w-full cursor-pointer accent-pink-500"
+          />
+          <span className="text-xs text-gray-400 w-12 text-right">
+            {Math.round(globalVolume * 100)}%
+          </span>
+        </div>
       </header>
 
       <div className="flex justify-between px-6 pt-3 gap-4">
@@ -93,6 +110,7 @@ export default function App() {
                 <TabController
                   tab={tab}
                   globalMute={globalMute}
+                  globalVolume={globalVolume}
                   volume={tabState.volume}
                   isMuted={tabState.isMuted}
                   onStateChange={updateTabState}
@@ -113,7 +131,7 @@ export default function App() {
   )
 }
 
-function TabController({ tab, globalMute, volume: externalVolume, isMuted: externalMuted, onStateChange }) {
+function TabController({ tab, globalMute, globalVolume, volume: externalVolume, isMuted: externalMuted, onStateChange }) {
   const [volume, setVolume] = useState(externalVolume)
   const [isMuted, setIsMuted] = useState(externalMuted)
 
@@ -123,20 +141,26 @@ function TabController({ tab, globalMute, volume: externalVolume, isMuted: exter
   }, [externalVolume, externalMuted])
 
   useEffect(() => {
+    // This effect now only fetches initial state from storage once per tab.
     chrome.storage.local.get([`tab-${tab.id}`], (result) => {
       const state = result[`tab-${tab.id}`] || { volume: 0.5, isMuted: false }
       setVolume(state.volume)
       setIsMuted(state.isMuted)
-      injectVolume(tab.id, state.volume, state.isMuted)
       onStateChange(tab.id, state.volume, state.isMuted)
     })
-  }, [tab.id, globalMute])
+  }, [tab.id])
+
+  useEffect(() => {
+    // This effect is responsible for injecting the volume whenever relevant state changes.
+    injectVolume(tab.id, volume, isMuted, globalVolume)
+  }, [tab.id, volume, isMuted, globalVolume])
+
 
   const updateVolume = (vol, mute) => {
     setVolume(vol)
     setIsMuted(mute)
     chrome.storage.local.set({ [`tab-${tab.id}`]: { volume: vol, isMuted: mute } })
-    injectVolume(tab.id, vol, mute)
+    // injectVolume is now handled by the useEffect above
     onStateChange(tab.id, vol, mute)
   }
 
@@ -198,10 +222,10 @@ function checkTabHasMedia(tabId) {
   })
 }
 
-function injectVolume(tabId, volume, isMuted) {
+function injectVolume(tabId, volume, isMuted, globalVolume = 1) {
   chrome.scripting.executeScript({
     target: { tabId },
-    func: (volume, isMuted) => {
+    func: (volume, isMuted, globalVolume) => {
       document.querySelectorAll('video, audio').forEach((el) => {
         try {
           if (!el._boostAudioContext) {
@@ -213,13 +237,13 @@ function injectVolume(tabId, volume, isMuted) {
           }
 
           const gainNode = el._boostAudioContext.gain
-          const targetGain = isMuted ? 0 : volume <= 0.5 ? volume * 2 : 1 + (volume - 0.5) * 4
-          gainNode.gain.value = targetGain
+          const tabGain = isMuted ? 0 : volume <= 0.5 ? volume * 2 : 1 + (volume - 0.5) * 4
+          gainNode.gain.value = tabGain * globalVolume
         } catch (e) {
           console.warn('Failed to apply audio boost', e)
         }
       })
     },
-    args: [volume, isMuted],
+    args: [volume, isMuted, globalVolume],
   })
 }
