@@ -214,17 +214,25 @@ function checkTabHasMedia(tabId) {
   return new Promise((resolve) => {
     chrome.scripting.executeScript(
       {
-        target: { tabId },
+        target: { tabId, allFrames: true },
         func: () => !!document.querySelector('video, audio'),
       },
-      (results) => resolve(results?.[0]?.result || false)
+      (results) => {
+        if (chrome.runtime.lastError) {
+          // Handle or log the error, e.g., for tabs that can't be scripted
+          return resolve(false)
+        }
+        // If any frame has media, the whole tab is considered to have media
+        const hasMedia = results?.some((frameResult) => frameResult.result)
+        resolve(hasMedia || false)
+      }
     )
   })
 }
 
 function injectVolume(tabId, volume, isMuted, globalVolume = 1) {
   chrome.scripting.executeScript({
-    target: { tabId },
+    target: { tabId, allFrames: true },
     func: (volume, isMuted, globalVolume) => {
       document.querySelectorAll('video, audio').forEach((el) => {
         try {
