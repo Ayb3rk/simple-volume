@@ -12,8 +12,12 @@ export default function App() {
       const results = await Promise.all(
         allTabs.map(async (tab) => {
           if (!tab.id || tab.url.startsWith('chrome://')) return null
-          const hasMedia = await checkTabHasMedia(tab.id)
-          return hasMedia ? tab : null
+          // A tab is controllable if it's audible OR has a media element.
+          const hasMediaElement = await checkTabHasMedia(tab.id)
+          if (tab.audible || hasMediaElement) {
+            return tab
+          }
+          return null
         })
       )
       setTabs(results.filter(Boolean))
@@ -214,17 +218,26 @@ function checkTabHasMedia(tabId) {
   return new Promise((resolve) => {
     chrome.scripting.executeScript(
       {
-        target: { tabId },
+        target: { tabId, allFrames: true },
         func: () => !!document.querySelector('video, audio'),
       },
-      (results) => resolve(results?.[0]?.result || false)
+      (results) => {
+        if (chrome.runtime.lastError) {
+          console.warn(`Could not access tab ${tabId}: ${chrome.runtime.lastError.message}`);
+          resolve(false);
+          return;
+        }
+        // Check if media was found in any of the frames.
+        const hasMedia = results?.some(frameResult => frameResult.result) || false;
+        resolve(hasMedia);
+      }
     )
   })
 }
 
 function injectVolume(tabId, volume, isMuted, globalVolume = 1) {
   chrome.scripting.executeScript({
-    target: { tabId },
+    target: { tabId, allFrames: true },
     func: (volume, isMuted, globalVolume) => {
       document.querySelectorAll('video, audio').forEach((el) => {
         try {
